@@ -59,10 +59,14 @@ git push -u origin main
 3. Sign in with your GitHub account
 4. Click "New app"
 5. Select your repository, branch, and main file path (`src/hed_schema_bot/app.py`)
-6. Add your secrets (environment variables) in the "Secrets" section:
+6. Add your secrets (environment variables) in the "Secrets" section using TOML format:
+   ```toml
+   OPENAI_API_KEY = "your-api-key-here"
    ```
-   OPENAI_API_KEY=your_api_key_here
-   ```
+   Note: Make sure to:
+   - Use quotes around the API key value
+   - Include spaces around the `=` sign
+   - Use valid TOML syntax
 7. Click "Deploy"
 
 Your app will be available at `https://your-username-hed-schema-bot-app-xxxx.streamlit.app`

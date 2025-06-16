@@ -106,9 +106,9 @@ user_input = st.text_area(
 )
 
 # Process button
-if st.button("Generate HED Tags"):
+if st.button("Recommend HED Tags"):
     if user_input:
-        with st.spinner("Generating HED tags..."):
+        with st.spinner("Searching for HED tags..."):
             # Get response from bot
             response = st.session_state.bot.invoke({
                 "question": user_input,
@@ -133,4 +133,4 @@ with st.expander("About HED Schema"):
 
 # Add footer
 st.markdown("---")
-st.markdown("Built with ❤️ using Streamlit and LangChain") 
+st.markdown("Built using Streamlit and LangChain") 
