@@ -1,0 +1,11 @@
+streamlit>=1.32.0
+langchain>=0.1.12
+langchain-openai>=0.0.8
+langchain-community>=0.0.27
+langchain-chroma>=0.0.6
+python-dotenv>=1.0.1
+beautifulsoup4>=4.12.3
+lxml>=5.1.0
+requests>=2.31.0
+hedtools>=0.2.0
+langgraph>=0.0.27 
