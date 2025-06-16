@@ -42,6 +42,7 @@ class State(TypedDict):
     question: str
     context: List[Document]
     answer: str
+    initial_generation: str
 
 def create_hed_bot():
     """Create and return a configured HED bot instance."""
@@ -50,32 +51,64 @@ def create_hed_bot():
     vocab = [tag for _, tag in get_hed_description_tag_pairs()]
     xml = get_hed_xml_content()
 
-    # Create prompt template
-    template = """Hierarchical Event Description (HED) schema expert.
+    # Define application steps
+    def generate(state: State):
+        # Create prompt template
+        template = """Hierarchical Event Description (HED) schema expert.
 You have access to the HED schema provided in the XML:
 {xml} 
+
 You take a tagging request and analyze it to find the most relevant HED tags. You will then give a summary of the tag names you found relevant, along with explanations for why you chose those tags.
+Take into account the hierarchy of the schema so you can use the most specific tags.
 You will then give an example of complete HED annotation using the tags you found. An example of a HED annotation is: (Foreground-view, (Square)), (Background-view, ((Human, Body), Outdoors, Urban))
 
 Tagging request: {question}
 
 Annotation:"""
-    custom_rag_prompt = PromptTemplate.from_template(template)
-
-    # Define application steps
-    def generate(state: State):
+        custom_rag_prompt = PromptTemplate.from_template(template)
         messages = custom_rag_prompt.invoke({
             "question": state["question"],
             "vocab": vocab,
             "xml": xml
         })
         response = llm.invoke(messages)
-        return {"answer": response.content}
+        return {"answer": response.content, "initial_generation": response.content}
+
+    def review(state: State):
+        # get the answer from the generate node
+        answer = state["answer"]
+        initial_generation = state["initial_generation"]
+        # review the answer
+        # Create prompt template
+        template = """Given the HED annotation, make it more concise, removing any tags that can be implied by the other. 
+For example, for this original annotation: (Sensory-presentation, (Foreground-view, (2D-shape, (Square, (Visual-attribute, (Color, (CSS-color, (Blue-color, Blue))))))), (Spatial-relation, (Left-side-of, (Screen))))
+It's reduces to: (Sensory-presentation, (Foreground-view, (Square, Blue)), (Spatial-relation, (Left-side-of, Screen)))
+Reasoning:
+    •	Blue implies Blue-color (since CSS-color is a parent of Blue-color).
+    •	Blue-color implies CSS-color (since CSS-color is a parent of Blue-color).
+    •	Color is implied by Blue-color.
+    •	Visual-attribute is implied by Color (and thus by Blue-color as well).
+    •	2D-shape is implied by Square (since Square is a type of 2D-shape).
+    •	Foreground-view is informative and can stay.
+    •	Sensory-presentation is a higher-level event marker that often stays if you are indicating event type.
+    •	Spatial-relation component remains as-is.
+
+Suggested annotation: {annotation}
+
+Revised annotation:"""
+        prompt = PromptTemplate.from_template(template)
+        messages = prompt.invoke({
+            "annotation": answer,
+        })
+        response = llm.invoke(messages)
+        return {"answer": response.content, "initial_generation": initial_generation}
 
     # Compile application
     graph_builder = StateGraph(State)
     graph_builder.add_node("generate", generate)
+    graph_builder.add_node("review", review)
     graph_builder.add_edge(START, "generate")
+    graph_builder.add_edge("generate", "review")
     graph = graph_builder.compile()
 
     return graph, vocab, xml
@@ -113,11 +146,16 @@ if st.button("Recommend HED Tags"):
             response = st.session_state.bot.invoke({
                 "question": user_input,
                 "vocab": st.session_state.vocab,
-                "xml": st.session_state.xml
+                "xml": st.session_state.xml,
+                "initial_generation": "",  # Initialize with empty string
+                "answer": ""  # Initialize with empty string
             })
             
-            # Display the response
-            st.markdown("### Generated HED Tags")
+            # Display both the initial generation and reviewed output
+            st.markdown("### Initial HED Tags")
+            st.write(response["initial_generation"])
+            
+            st.markdown("### Optimized HED Tags")
             st.write(response["answer"])
     else:
         st.warning("Please enter an event description first.")
