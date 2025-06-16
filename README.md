@@ -37,23 +37,24 @@ pip install -e .
 OPENAI_API_KEY=your_api_key_here
 ```
 
-2. Run the Streamlit app using one of these methods:
-
-   a. Using the run script (recommended):
-   ```bash
-   python run.py
-   ```
-
-   b. Using streamlit directly:
-   ```bash
-   streamlit run src/hed_schema_bot/app.py
-   ```
+2. Run the Streamlit app:
+```bash
+streamlit run src/hed_schema_bot/app.py
+```
 
 ## Deployment
 
 The easiest way to deploy this app is using Streamlit Community Cloud (free for public apps):
 
-1. Push your code to a GitHub repository
+1. Push your code to a GitHub repository:
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin <your-github-repo-url>
+git push -u origin main
+```
+
 2. Go to [share.streamlit.io](https://share.streamlit.io/)
 3. Sign in with your GitHub account
 4. Click "New app"
