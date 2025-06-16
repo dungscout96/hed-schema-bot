@@ -80,20 +80,18 @@ Annotation:"""
         initial_generation = state["initial_generation"]
         # review the answer
         # Create prompt template
-        template = """Given the HED annotation, make it more concise, removing any tags that can be implied by the other. 
-For example, for this original annotation: (Sensory-presentation, (Foreground-view, (2D-shape, (Square, (Visual-attribute, (Color, (CSS-color, (Blue-color, Blue))))))), (Spatial-relation, (Left-side-of, (Screen))))
-It's reduces to: (Sensory-presentation, (Foreground-view, (Square, Blue)), (Spatial-relation, (Left-side-of, Screen)))
-Reasoning:
-    •	Blue implies Blue-color (since CSS-color is a parent of Blue-color).
-    •	Blue-color implies CSS-color (since CSS-color is a parent of Blue-color).
-    •	Color is implied by Blue-color.
-    •	Visual-attribute is implied by Color (and thus by Blue-color as well).
-    •	2D-shape is implied by Square (since Square is a type of 2D-shape).
-    •	Foreground-view is informative and can stay.
-    •	Sensory-presentation is a higher-level event marker that often stays if you are indicating event type.
-    •	Spatial-relation component remains as-is.
+        template = """You are given a HED annotation. Revise it to be maximally concise while still preserve semantic grouping. Here are the revision rules:
+1.	Remove Redundant Parent Tags:
+	•	If a child tag fully implies its parent, drop the parent.
+	•	Examples:
+	•	2D-shape, Square → Square
+	•	Color, Red → Red 
+2.	Keep Event Type Tags:
+	•	Always retain the top-level event type (e.g., Visual-presentation, Sensory-presentation).
+3.	Preserve Leaf Tags:
+	•	Always retain specific value or leaf tags like Square, Red.
 
-Suggested annotation: {annotation}
+Original annotation: {annotation}
 
 Revised annotation:"""
         prompt = PromptTemplate.from_template(template)
