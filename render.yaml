@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: litellm-proxy
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: AWS_ACCESS_KEY_ID
+        sync: false  # Set value in Render UI
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_DEFAULT_REGION
+        value: us-east-2
+      - key: OPENAI_API_KEY
+        sync: false
