@@ -47,7 +47,9 @@ class State(TypedDict):
 def create_hed_bot():
     """Create and return a configured HED bot instance."""
     # Initialize components
-    llm = ChatOpenAI(model="gpt-4o-mini")
+    llm = ChatOpenAI(model="gpt-4o-mini",
+                    api_key="sk-1234",
+                    base_url="https://litellm-proxy-production-c44d.up.railway.app/")
     vocab = [tag for _, tag in get_hed_description_tag_pairs()]
     xml = get_hed_xml_content()
 
