@@ -49,8 +49,8 @@ def create_hed_bot():
     # Initialize components
     llm = ChatOpenAI(model="gpt-4o-mini",
                     api_key="sk-1234",
+                    temperature=0,
                     base_url="https://litellm-proxy-production-c44d.up.railway.app/")
-    vocab = [tag for _, tag in get_hed_description_tag_pairs()]
     xml = get_hed_xml_content()
 
     # Define application steps
@@ -62,7 +62,13 @@ You have access to the HED schema provided in the XML:
 
 You take a tagging request and analyze it to find the most relevant HED tags. You will then give a summary of the tag names you found relevant, along with explanations for why you chose those tags.
 Take into account the hierarchy of the schema so you can use the most specific tags.
-You will then give an example of complete HED annotation using the tags you found. An example of a HED annotation is: (Foreground-view, (Square)), (Background-view, ((Human, Body), Outdoors, Urban))
+You will then give an example of complete HED annotation using the tags you found. 
+
+
+Then since this schema has is-a relationship, an annotation the appearance of children and parent together is redundant.
+You will simplify the annotation if there's redundant, keeping only the most specific term, since it implies all its ancestors.
+
+An example of a HED annotation with only specific tags: (Foreground-view, (Square)), (Background-view, ((Human, Body), Outdoors, Urban))
 
 Tagging request: {question}
 
@@ -70,7 +76,6 @@ Annotation:"""
         custom_rag_prompt = PromptTemplate.from_template(template)
         messages = custom_rag_prompt.invoke({
             "question": state["question"],
-            "vocab": vocab,
             "xml": xml
         })
         response = llm.invoke(messages)
@@ -106,12 +111,12 @@ Revised annotation:"""
     # Compile application
     graph_builder = StateGraph(State)
     graph_builder.add_node("generate", generate)
-    graph_builder.add_node("review", review)
+    # graph_builder.add_node("review", review)
     graph_builder.add_edge(START, "generate")
-    graph_builder.add_edge("generate", "review")
+    # graph_builder.add_edge("generate", "review")
     graph = graph_builder.compile()
 
-    return graph, vocab, xml
+    return graph, xml
 
 # Set page config
 st.set_page_config(
@@ -122,7 +127,7 @@ st.set_page_config(
 
 # Initialize session state
 if 'bot' not in st.session_state:
-    st.session_state.bot, st.session_state.vocab, st.session_state.xml = create_hed_bot()
+    st.session_state.bot, st.session_state.xml = create_hed_bot()
 
 # App title and description
 st.title("🏷️ HED Schema Bot")
@@ -145,17 +150,16 @@ if st.button("Recommend HED Tags"):
             # Get response from bot
             response = st.session_state.bot.invoke({
                 "question": user_input,
-                "vocab": st.session_state.vocab,
                 "xml": st.session_state.xml,
                 "initial_generation": "",  # Initialize with empty string
                 "answer": ""  # Initialize with empty string
             })
             
             # Display both the initial generation and reviewed output
-            st.markdown("### Initial HED Tags")
-            st.write(response["initial_generation"])
+            # st.markdown("### Initial HED Tags")
+            # st.write(response["initial_generation"])
             
-            st.markdown("### Optimized HED Tags")
+            # st.markdown("### Response")
             st.write(response["answer"])
     else:
         st.warning("Please enter an event description first.")
