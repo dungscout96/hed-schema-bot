@@ -7,7 +7,6 @@ from langchain_openai import ChatOpenAI
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 from langgraph.graph import START, StateGraph
-
 # Load environment variables
 load_dotenv()
 
@@ -47,11 +46,16 @@ class State(TypedDict):
 def create_hed_bot():
     """Create and return a configured HED bot instance."""
     # Initialize components
-    llm = ChatOpenAI(model="gpt-4o-mini",
+    llm = ChatOpenAI(model="gpt-4o",
                     api_key="sk-1234",
                     temperature=0,
-                    base_url="https://litellm-proxy-production-c44d.up.railway.app/")
+                    base_url="https://litellm-proxy-production-c44d.up.railway.app/"
+                    # base_url="http://0.0.0.0:4000/"
+        )
     xml = get_hed_xml_content()
+    # load the accepted tags from all_hed_tags.txt
+    with open("all_hed_tags.txt", "r", encoding="utf-8") as f:
+        accepted_tags = f.read()
 
     # Define application steps
     def generate(state: State):
@@ -61,49 +65,56 @@ You have access to the HED schema provided in the XML:
 {xml} 
 
 You take a tagging request and analyze it to find the most relevant HED tags. You will then give a summary of the tag names you found relevant, along with explanations for why you chose those tags.
-Take into account the hierarchy of the schema so you can use the most specific tags.
 You will then give an example of complete HED annotation using the tags you found. 
 
-
-Then since this schema has is-a relationship, an annotation the appearance of children and parent together is redundant.
-You will simplify the annotation if there's redundant, keeping only the most specific term, since it implies all its ancestors.
+Since this schema has is-a relationship, an annotation the appearance of children and parent together is redundant.
+You will simplify the annotation if there's redundant, keeping only the most specific term, since it implies all its ancestors. 
+You will then review the annotation, keeping only the leaf tags, which are the most specific tags in the hierarchy.
 
 An example of a HED annotation with only specific tags: (Foreground-view, (Square)), (Background-view, ((Human, Body), Outdoors, Urban))
 
+Give the final annotation in the following json format:
+    "anotation": "Your HED annotation here"
 Tagging request: {question}
-
-Annotation:"""
+"""
         custom_rag_prompt = PromptTemplate.from_template(template)
         messages = custom_rag_prompt.invoke({
             "question": state["question"],
             "xml": xml
         })
         response = llm.invoke(messages)
-        return {"answer": response.content, "initial_generation": response.content}
+        return {"answer": response.content}
 
     def review(state: State):
         # get the answer from the generate node
-        answer = state["answer"]
-        initial_generation = state["initial_generation"]
+        initial_generation = state["answer"]
+        
+        # extract the HED annotation from the initial generation
+        import re
+        match = re.search(r'"annotation":\s*"([^"]+)"', initial_generation)
+        if match:
+            initial_annotation = match.group(1)
+        else:
+            raise ValueError("No HED annotation found in the initial generation.")
         # review the answer
         # Create prompt template
-        template = """You are given a HED annotation. Revise it to be maximally concise while still preserve semantic grouping. Here are the revision rules:
-1.	Remove Redundant Parent Tags:
-	•	If a child tag fully implies its parent, drop the parent.
-	•	Examples:
-	•	2D-shape, Square → Square
-	•	Color, Red → Red 
-2.	Keep Event Type Tags:
-	•	Always retain the top-level event type (e.g., Visual-presentation, Sensory-presentation).
-3.	Preserve Leaf Tags:
-	•	Always retain specific value or leaf tags like Square, Red.
+        template = """You are given a HED annotation and a list of accepted tags: 
+{vocab}
+
+If there are hierarchical paths in the annotation, you will simplify it, keeping only the leaf specific tags in the hierarchy. For example, Task-property/Task-action-type/Appropriate-action -> Appropriate-action.
+If that's not the case, skip this step.
+You will then review the annotation and replace any tags that are not in the accepted tags list with a tag that is in the accepted tags list.
+
+You will explain your reasoning then display the final annotation.
+
+You will then try to recover the original description from the annotation.
 
 Original annotation: {annotation}
-
-Revised annotation:"""
+"""
         prompt = PromptTemplate.from_template(template)
         messages = prompt.invoke({
-            "annotation": answer,
+            "vocab": accepted_tags,
+            "annotation": initial_annotation,
         })
         response = llm.invoke(messages)
         return {"answer": response.content, "initial_generation": initial_generation}
@@ -111,9 +122,9 @@ Revised annotation:"""
     # Compile application
     graph_builder = StateGraph(State)
     graph_builder.add_node("generate", generate)
-    # graph_builder.add_node("review", review)
+    graph_builder.add_node("review", review)
     graph_builder.add_edge(START, "generate")
-    # graph_builder.add_edge("generate", "review")
+    graph_builder.add_edge("generate", "review")
     graph = graph_builder.compile()
 
     return graph, xml
@@ -156,10 +167,10 @@ if st.button("Recommend HED Tags"):
             })
             
             # Display both the initial generation and reviewed output
-            # st.markdown("### Initial HED Tags")
-            # st.write(response["initial_generation"])
+            st.markdown("### Initial suggestion")
+            st.write(response["initial_generation"])
             
-            # st.markdown("### Response")
+            st.markdown("### Revised annotation")
             st.write(response["answer"])
     else:
         st.warning("Please enter an event description first.")

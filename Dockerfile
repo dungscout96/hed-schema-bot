@@ -8,6 +8,7 @@ WORKDIR /app
 
 # Copy startup script
 COPY start.sh /app/start.sh
+COPY all_hed_tags.txt /app/all_hed_tags.txt
 
 # Make sure the script is executable
 RUN chmod +x /app/start.sh
