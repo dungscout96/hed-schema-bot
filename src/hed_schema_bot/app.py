@@ -98,12 +98,12 @@ Tagging request: {question}
             raise ValueError("No HED annotation found in the initial generation.")
         # review the answer
         # Create prompt template
-        template = """You are given a HED annotation and a list of accepted tags: 
+        template = """You are given an annotation and a list of accepted tags: 
 {vocab}
 
+You will review the annotation and replace any tags that are not in the accepted tags list with a tag that is in the accepted tags list.
 If there are hierarchical paths in the annotation, you will simplify it, keeping only the leaf specific tags in the hierarchy. For example, Task-property/Task-action-type/Appropriate-action -> Appropriate-action.
 If that's not the case, skip this step.
-You will then review the annotation and replace any tags that are not in the accepted tags list with a tag that is in the accepted tags list.
 
 You will explain your reasoning then display the final annotation so it can be copied. Keep the final annotation all in one line and preserve semantic grouping.
 
